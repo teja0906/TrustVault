@@ -179,13 +179,26 @@ app.get("/api/test-terminal", (_req, res) => {
   res.json({ message: "Backend reached successfully" });
 });
 app.use(helmet());
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "https://trustvault-frontend-5tl3.onrender.com",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+].filter((origin): origin is string => Boolean(origin));
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-    ],
+    origin: (origin, callback) => {
+      // Requests without an Origin header, such as curl, are allowed.
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Origin not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 app.use(express.json({ limit: "100kb" }));
