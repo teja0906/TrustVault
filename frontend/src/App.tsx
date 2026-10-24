@@ -76,7 +76,7 @@ const [auditVerificationLoading, setAuditVerificationLoading] =
   setLoggingIn(true);
 
   try {
-    const response = await fetch("http://localhost:4000/api/login", {
+    const response = await fetch("https://trustvault-bpft.onrender.com/api/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -116,7 +116,7 @@ const loadAuditLogs = async () => {
 
   try {
     const response = await fetch(
-      "http://localhost:4000/api/audit-logs",
+      "https://trustvault-bpft.onrender.com/api/audit-logs",
       {
         headers: {
           Authorization: `Bearer ${token.trim()}`,
@@ -154,7 +154,7 @@ const verifyAuditLogs = async () => {
 
   try {
     const response = await fetch(
-      "http://localhost:4000/api/audit-logs/verify",
+      "https://trustvault-bpft.onrender.com/api/audit-logs/verify",
       {
         headers: {
           Authorization: `Bearer ${token.trim()}`,
@@ -193,7 +193,7 @@ const verifyAuditLogs = async () => {
 
     try {
       const response = await fetch(
-        `http://localhost:4000/api/documents/${permissionDocumentId}/permissions`,
+        `https://trustvault-bpft.onrender.com/api/documents/${permissionDocumentId}/permissions`,
         {
           headers: { Authorization: `Bearer ${token.trim()}` },
         }
@@ -228,7 +228,7 @@ const verifyAuditLogs = async () => {
 
     try {
       const response = await fetch(
-        `http://localhost:4000/api/documents/${permissionDocumentId}/permissions`,
+        `https://trustvault-bpft.onrender.com/api/documents/${permissionDocumentId}/permissions`,
         {
           method: "POST",
           headers: {
@@ -269,7 +269,7 @@ const verifyAuditLogs = async () => {
 
     try {
       const response = await fetch(
-        `http://localhost:4000/api/documents/${permissionDocumentId}/permissions/${userId}`,
+        `https://trustvault-bpft.onrender.com/api/documents/${permissionDocumentId}/permissions/${userId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token.trim()}` },
@@ -303,7 +303,7 @@ const verifyAuditLogs = async () => {
 
       try {
         const response = await fetch(
-          "http://localhost:4000/api/documents",
+          "https://trustvault-bpft.onrender.com/api/documents",
           {
             headers: {
               Authorization: `Bearer ${token.trim()}`,
@@ -347,7 +347,7 @@ const verifyAuditLogs = async () => {
 
     try {
       const response = await fetch(
-        `http://localhost:4000/api/documents/${doc.id}/download`,
+        `https://trustvault-bpft.onrender.com/api/documents/${doc.id}/download`,
         {
           headers: {
             Authorization: `Bearer ${token.trim()}`,
@@ -419,7 +419,7 @@ const verifyAuditLogs = async () => {
       formData.append("category", category.trim() || "General");
 
       const response = await fetch(
-        "http://localhost:4000/api/documents/upload",
+        "https://trustvault-bpft.onrender.com/api/documents/upload",
         {
           method: "POST",
           headers: {
@@ -446,7 +446,7 @@ const verifyAuditLogs = async () => {
 
       try {
         const listResponse = await fetch(
-          "http://localhost:4000/api/documents",
+          "https://trustvault-bpft.onrender.com/api/documents",
           {
             headers: {
               Authorization: `Bearer ${token.trim()}`,
