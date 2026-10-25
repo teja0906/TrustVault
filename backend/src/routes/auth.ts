@@ -187,11 +187,11 @@ router.post(
           role: user.role,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
       return res.status(500).json({
         status: "error",
-        message: "Login failed.",
+        message: error.message || "Login failed.",
       });
     }
   }

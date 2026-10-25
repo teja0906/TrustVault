@@ -7,6 +7,7 @@ import permissionRoutes from "./routes/permissions";
 import auditRoutes from "./routes/audit";
 import adminRoutes from "./routes/admin";
 import { getStorageMode } from "./services/storage";
+import { pool } from "./db";
 
 export const app = express();
 
@@ -63,6 +64,15 @@ app.get("/api/health", (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     storageMode: getStorageMode(),
   });
+});
+
+app.get("/api/debug-db", async (_req: Request, res: Response) => {
+  try {
+    const r = await pool.query("SELECT NOW()");
+    return res.json({ status: "connected", now: r.rows[0].now });
+  } catch (err: any) {
+    return res.status(500).json({ status: "failed", error: err.message, code: err.code });
+  }
 });
 
 // API Routers
