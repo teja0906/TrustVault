@@ -66,15 +66,6 @@ app.get("/api/health", (_req: Request, res: Response) => {
   });
 });
 
-app.get("/api/debug-db", async (_req: Request, res: Response) => {
-  try {
-    const r = await pool.query("SELECT NOW()");
-    return res.json({ status: "connected", now: r.rows[0].now });
-  } catch (err: any) {
-    return res.status(500).json({ status: "failed", error: err.message, code: err.code });
-  }
-});
-
 // API Routers
 app.use("/api", authRoutes);
 app.use("/api/documents", permissionRoutes); // Handles /api/documents/:id/permissions
