@@ -1,6 +1,8 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import authRoutes from "./routes/auth";
 import documentRoutes from "./routes/documents";
 import permissionRoutes from "./routes/permissions";
@@ -25,29 +27,16 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Security headers
-app.use(helmet());
-
-// Dynamic CORS configuration
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175",
-  "http://localhost:4000",
-].filter((origin): origin is string => Boolean(origin));
+// Security headers with CSP relaxed for self-hosted SPA assets
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+  })
+);
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like curl, mobile apps, or same-origin)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        // In production or when FRONTEND_URL is set, allow matching origin or log
-        callback(null, true);
-      }
-    },
+    origin: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -73,7 +62,30 @@ app.use("/api/documents", documentRoutes);   // Handles /api/documents, /upload,
 app.use("/api/audit-logs", auditRoutes);
 app.use("/api/admin", adminRoutes);
 
-// 404 Route Handler
+// Static Frontend SPA Serving (Single Unified URL)
+const candidateDistPaths = [
+  path.resolve(__dirname, "../../frontend/dist"),
+  path.resolve(__dirname, "../frontend/dist"),
+  path.resolve(process.cwd(), "frontend/dist"),
+  path.resolve(process.cwd(), "../frontend/dist"),
+];
+
+const clientDist = candidateDistPaths.find((p) => existsSync(path.join(p, "index.html")));
+
+if (clientDist) {
+  console.log(`Serving unified frontend from: ${clientDist}`);
+  app.use(express.static(clientDist));
+
+  // SPA fallback for non-API GET requests
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method === "GET" && !req.path.startsWith("/api")) {
+      return res.sendFile(path.join(clientDist, "index.html"));
+    }
+    return next();
+  });
+}
+
+// 404 Route Handler for undefined /api routes
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     status: "error",

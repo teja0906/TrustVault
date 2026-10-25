@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import "./App.css";
 
 const API_URL = (
-  import.meta.env.VITE_API_URL || "https://trustvault-api-mib1.onrender.com"
+  import.meta.env.VITE_API_URL || ""
 ).replace(/\/+$/, "");
 
 interface CurrentUser {
