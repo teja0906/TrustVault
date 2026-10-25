@@ -228,12 +228,12 @@ For deployment on Render, private files must be stored in Supabase Storage rathe
 
 ---
 
-## 9. Live Deployed Application URLs
+## 9. Live Deployed Application URL
 
-- **Frontend Live URL**: [https://trustvault-frontend-xop8.onrender.com](https://trustvault-frontend-xop8.onrender.com)
-- **Backend API Live URL**: [https://trustvault-api-mib1.onrender.com](https://trustvault-api-mib1.onrender.com)
-- **API Health Check**: [https://trustvault-api-mib1.onrender.com/api/health](https://trustvault-api-mib1.onrender.com/api/health)
-- **Database**: Hosted PostgreSQL on Render (`oregon` region)
+- 🌐 **TrustVault Unified Application (Single Live URL)**: [https://trustvault-api-mib1.onrender.com](https://trustvault-api-mib1.onrender.com)
+  *(Serves both the complete React Web UI at `/` and the secure Backend APIs at `/api/*` on the same domain with zero CORS friction)*
+- 🔌 **API Health Check**: [https://trustvault-api-mib1.onrender.com/api/health](https://trustvault-api-mib1.onrender.com/api/health)
+- 🗄️ **Database**: Hosted PostgreSQL on Render (`oregon` region)
 
 ---
 
