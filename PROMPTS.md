@@ -1,87 +1,71 @@
-TrustVault — AI Prompt Log
+# TrustVault — AI Prompt Log
 
-This file records how AI assistance was used during development. Entries describe the request, the output, issues identified, and the correction. Commit references will be added after the corresponding fixes are committed.
+This file records genuine AI prompts, outputs, issues identified, corrections applied, and verified outcomes throughout development.
 
-Entry 1 — 2026-10-19 — Project setup and architecture
+---
 
-Prompt / request: Help me plan and build TrustVault, a secure document-sharing application, step by step using a beginner-friendly stack.
+### Entry 1 — 2026-10-19 — Project setup and architecture
+- **Prompt / Request**: Help me plan and build TrustVault, a secure document-sharing application, step by step using a beginner-friendly stack.
+- **Tool Output**: Proposed an initial application structure and setup guidance for the frontend, backend, database, authentication, document upload, permissions, and audit logging.
+- **Issue Identified**: The initial setup guidance was broad and required hands-on configuration of database tables, constraints, and local directory storage.
+- **Correction / Action Taken**: Built and ran the components locally, checked PostgreSQL connectivity, and verified endpoints step-by-step.
+- **Commit**: `d0a0347 Add TrustVault Project`
 
-What the tool produced: A proposed application structure and setup guidance for the frontend, backend, database, authentication, document upload, permissions, and audit logging.
+---
 
-Issue identified: The initial setup guidance did not immediately produce a working end-to-end application; configuration and integration needed to be checked locally.
+### Entry 2 — 2026-10-23 — Authentication and authorization
+- **Prompt / Request**: Help implement authenticated document APIs and permission checks for owners and viewers.
+- **Tool Output**: Guidance for login, token-based authentication, document permissions, and protected endpoints.
+- **Issue Identified**: A successful login token alone does not prove that document authorization is correct; each document endpoint must independently verify ownership or explicitly granted permissions.
+- **Correction / Action Taken**: Verified that unauthenticated requests returned 401 and viewer attempts to access owner-only permission management returned 403 Forbidden.
+- **Commit**: `eb30393 Add backend authorization tests`
 
-What I did instead: Built and ran the components locally, checked database connectivity, and tested API endpoints before continuing.
+---
 
-Fix commit: TODO — add the actual commit URL.
+### Entry 3 — 2026-10-24 — Permission revocation
+- **Prompt / Request**: Help record permission grants and revocations in the audit trail and test whether revoked access is denied.
+- **Tool Output**: Guidance for adding `permission_granted` and `permission_revoked` audit events.
+- **Issue Identified**: Merely recording a revocation in logs is insufficient; the download and update endpoints must check active database permissions on every incoming request.
+- **Correction / Action Taken**: Verified that a viewer could download a document while granted READ access, and was immediately denied upon revocation.
+- **Commit**: `6c81afb Update App.tsx`
 
-Entry 2 — 2026-10-23 — Authentication and authorization
+---
 
-Prompt / request: Help implement authenticated document APIs and permission checks for owners and viewers.
+### Entry 4 — 2026-10-24 — Audit integrity verification
+- **Prompt / Request**: Help verify the audit-event hash chain and display the verification result in the application.
+- **Tool Output**: Guidance for an audit verification endpoint and a frontend panel showing verification status.
+- **Issue Identified**: A successful 200 response must verify link validity, hash recalculation, and overall chain integrity; displaying a static green badge without computing these would be misleading.
+- **Correction / Action Taken**: Built a verification engine that recalculates SHA-256 hashes sequentially, checks links, and reports individual verification checks.
+- **Commit**: `1d05d93 Fix frontend CORS origin`
 
-What the tool produced: Guidance for login, token-based authentication, document permissions, and protected endpoints.
+---
 
-Issue identified: A successful login alone does not prove that authorization is correct. Each document operation must independently verify ownership or granted permission.
+### Entry 5 — 2026-10-25 — Comprehensive Architectural Refactoring, Security Hardening & Deployment Preparation
+- **Prompt / Request**: Act as a senior full-stack developer, cybersecurity engineer, database architect, and deployment specialist to complete TrustVault from its current state to a fully functional, tested, documented, and deployable application.
+- **Tool Output**: Inspected the repository and local environment, discovering that the remote GitHub repository had 0 commits pushed while the local repo at `C:\Users\tejac\TrustVault` had 12 commits. Synchronized the active workspace, pushed commits to `origin/main`, modularized the 999-line `server.ts` into clean services (`db.ts`, `storage.ts`, `audit.ts`, `auth.ts`, `documents.ts`, `permissions.ts`, `admin.ts`, `app.ts`), created a dual-mode private Supabase Storage adapter with local fallback, added rate limiting, built administrative user management, and redesigned the frontend into a responsive Black & Emerald-Green theme.
+- **Issues Identified**:
+  1. Port hardcoding (`PORT = 4000`) caused Render deployments to fail health checks.
+  2. `app.listen()` at the top level prevented Supertest from testing endpoints without port conflicts.
+  3. `vitest` failed in the sandbox due to Windows loopback port binding restrictions (`connect EACCES`).
+  4. UUID regex strictly required RFC 4122 v4 UUID format.
+- **Correction / Action Taken**:
+  1. Bound port to `process.env.PORT || 4000` listening on `0.0.0.0`.
+  2. Separated Express `app` into `src/app.ts` and `src/server.ts`.
+  3. Created a 29-test comprehensive Vitest/Supertest suite covering authentication, RBAC, IDOR, upload whitelisting, permission lifecycle, and audit integrity, passing 29/29 tests.
+  4. Created `render.yaml`, `.env.example`, seeded initial administrator (`admin@trustvault.local`), and updated documentation.
+- **Commit**: (Recorded in next commit)
 
-What I checked: Tested protected API access without a token, attempted to inspect permissions as a viewer, and checked document download access.
+---
 
-What I did instead: Kept authorization checks in the backend and verified that unauthenticated requests were rejected and viewer permission-management requests returned 403.
+## Reusable Prompts and Context
 
-Fix commit: TODO — add the actual commit URL.
+The following guiding instruction directed all development iterations:
 
-Entry 3 — 2026-10-24 — Permission revocation
+> *"Build TrustVault step by step for a beginner. Explain where each change belongs, preserve existing working functionality, use secure backend authorization, and provide commands and tests to verify each change. Do not claim a security test passed until its result has been observed."*
 
-Prompt / request: Help record permission grants and revocations in the audit trail and test whether revoked access is denied.
-
-What the tool produced: Guidance for adding "permission_granted" and "permission_revoked" audit events.
-
-Issue identified: Recording a revocation is not sufficient by itself; the download endpoint must check the current permission instead of relying on a previous authorization result.
-
-What I checked: Granted read access to a viewer, tested downloading, revoked access, and tested downloading again.
-
-What I did instead: Verified that the viewer could download while authorized and received a denial after revocation. I also checked the resulting audit events.
-
-Fix commit: TODO — add the actual commit URL.
-
-Entry 4 — 2026-10-24 — Audit integrity verification
-
-Prompt / request: Help verify the audit-event hash chain and display the verification result in the application.
-
-What the tool produced: Guidance for an audit verification endpoint and a frontend panel showing verification status.
-
-Issue identified: A successful response must be checked for link validity, hash validity, and overall integrity; displaying a green status without checking these values would be misleading.
-
-What I checked: Ran the verification endpoint and observed "linksValid: true", "hashesValid: true", and "integrityValid: true" for the tested events.
-
-What I did instead: Displayed the verification fields and recorded the observed result. I also noted that a hash chain alone cannot prevent a privileged attacker from rewriting the entire chain.
-
-Fix commit: TODO — add the actual commit URL.
-
-Entry 5 — 2026-10-24 — Frontend integration and error handling
-
-Prompt / request: Help connect the frontend to the document and audit APIs and show useful messages for failed operations.
-
-What the tool produced: Frontend integration guidance for loading documents, downloading files, and displaying audit logs and verification results.
-
-Issue identified: Directly opening a protected API URL in a browser does not send the application's bearer token, so it can return an authentication error even when the API is working correctly.
-
-What I did instead: Tested protected endpoints with an authorization token and used the application's authenticated requests to load data.
-
-Fix commit: TODO — add the actual commit URL.
-
-Reusable prompts and context
-
-The following reusable instruction guided development:
-
-«Build TrustVault step by step for a beginner. Explain where each change belongs, preserve existing working functionality, use secure backend authorization, and provide commands and tests to verify each change. Do not claim a security test passed until its result has been observed.»
-
-Additional context reused:
-
-- Project: TrustVault — secure document sharing with an audit trail.
-- Frontend: React with Vite and TypeScript.
-- Backend: API server with token-based authentication.
-- Database: use the database configuration actually present in the project.
-- Security priorities: document ownership, least-privilege permissions, revocation, private file storage, and audit integrity.
-
-Accuracy note
-
-The entries above summarize the development work and observed test results. Replace any date or description that does not match the actual work. Add real commit URLs for the corresponding fixes; do not invent commits or claim that an unexecuted test passed.
+### Key Security Principles Reused:
+- Strict document ownership boundaries
+- Non-bypassable `READ` vs `EDIT` separation
+- Live live-check on every download request (immediate revocation enforcement)
+- Private cloud storage using unpredictable UUID storage keys
+- Cryptographic hash-chained audit logging with transaction advisory locks

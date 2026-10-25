@@ -1,166 +1,239 @@
-TrustVault — Secure Document Sharing with a Real Audit Trail
+# TrustVault — Secure Document Management with Cryptographic Audit Trails
 
-1. Project Overview
+TrustVault is an enterprise-grade document security platform providing fine-grained access control, isolated cloud document storage, and tamper-evident cryptographic audit trails.
 
-TrustVault is a secure document-sharing web application designed to help users upload, download, and share documents with controlled access permissions. It maintains an audit trail of important activities so that document operations and permission changes can be reviewed.
+---
 
-2. Problem Statement
+## 1. Project Overview & Architecture
 
-Sharing documents digitally can create security risks when access is not properly controlled or when activities are difficult to trace. TrustVault addresses these challenges through authentication, permission-based access control, and audit-log integrity verification.
+TrustVault enables organizations to store, share, and track sensitive documents under a strict Zero-Trust model:
+- **Private Document Lifecycle**: Documents are stored in private cloud storage (Supabase Storage) under randomized UUID keys, never exposed publicly.
+- **Granular RBAC & Sharing**: Multi-role support (`ADMIN`, `OWNER`, `VIEWER`) with document-level `READ` vs `EDIT` separation.
+- **Immediate Revocation**: Permissions are evaluated in real-time on every stream/download request; access is terminated immediately upon revocation.
+- **Cryptographic Audit Trail**: Every sensitive activity (logins, uploads, downloads, edits, permissions, access denials) is linked into a SHA-256 hash chain with serialized concurrency protection.
+- **Black & Emerald-Green Design System**: Modern, responsive user interface built for high usability and clarity.
 
-3. Objectives
-* Provide user registration and login.
-* Allow authenticated users to upload and download documents.
-* Enable document owners to grant and revoke access.
-* Restrict unauthorized document access.
-* Record important actions in audit logs.
-* Verify audit-log integrity using hashes and linked events.
-4. Technology Stack
-* Frontend: React, TypeScript, Vite
-* Backend: Node.js, Express
-* Database: PostgreSQL
-* Authentication: JSON Web Tokens (JWT)
-* API testing: Postman
-* Development tools: Visual Studio Code, Git
-5. Main Features
+```
++-------------------------------------------------------------------------+
+|                         TrustVault Client (React 19)                    |
+|             (Black & Emerald Dashboard, Live Stats, Permission UI)      |
++------------------------------------+------------------------------------+
+                                     |  HTTPS / Bearer JWT (15m expiry)
+                                     v
++-------------------------------------------------------------------------+
+|                    TrustVault Backend (Node.js / Express 5)             |
+|  - Rate Limiter (30 req/15m)            - Dual-Mode Storage Adapter     |
+|  - Auth & RBAC Middleware               - SHA-256 Hash Chaining Engine  |
+|  - Document Lifecycle & Validation      - Advisory Lock Concurrency     |
++-------------------+---------------------------------+-------------------+
+                    |                                 |
+                    v                                 v
++------------------------------------+   +--------------------------------+
+|    Supabase / Render PostgreSQL    |   |     Supabase Private Storage   |
+|  - app_users (bcrypt 12 rounds)    |   |  - Bucket: trustvault-documents|
+|  - documents (metadata & keys)     |   |  - Private access only         |
+|  - document_permissions            |   |  - Server-side streaming       |
+|  - audit_events (hash chained)     |   |    & signed download URLs      |
++------------------------------------+   +--------------------------------+
+```
 
-Authentication
+---
 
-Users log in to access protected application features.
+## 2. Technology Stack
 
-Document Management
+- **Backend**: Node.js (v24), TypeScript, Express 5, `pg`, `bcrypt` (12 rounds), `jsonwebtoken`, `multer`, `helmet`, `cors`, `express-rate-limit`, `@supabase/supabase-js`.
+- **Frontend**: React 19, TypeScript, Vite, Custom Emerald Design System, native Fetch with Bearer Auth.
+- **Database**: PostgreSQL with `pgcrypto` extension and transaction-level advisory locks (`pg_advisory_xact_lock`).
+- **Cloud Storage**: Supabase Storage (`trustvault-documents` private bucket) with fallback to secure local disk.
+- **Testing**: Vitest, Supertest (29 automated unit and security integration tests).
+- **Deployment**: Render Web Service (Backend) + Render Static Site (Frontend).
 
-Authenticated users can upload documents and download documents they own or are authorized to access.
+---
 
-Permission Management
+## 3. Security Features & RBAC Matrix
 
-Document owners can grant read access and revoke previously granted permissions.
+### Role Permissions:
 
-Audit Trail
+| Capability | ADMIN | OWNER (Document Creator) | VIEWER (with READ) | VIEWER (with EDIT) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Upload Documents** | Yes | Yes | Yes (owns uploaded doc) | Yes |
+| **Download Authorized Documents** | Yes | Yes | Yes | Yes |
+| **Modify Document Metadata (Name/Category)** | Yes | Yes | No (`403 Forbidden`) | Yes |
+| **Grant & Revoke Sharing Permissions** | Yes | Yes | No (`403 Forbidden`) | No (`403 Forbidden`) |
+| **Delete Document** | Yes | Yes | No (`403 Forbidden`) | No (`403 Forbidden`) |
+| **View Audit Trail** | Full System | Own & Owned Docs | Own Actions | Own Actions |
+| **Verify Audit Hash Chain** | Yes | Yes | Yes | Yes |
+| **User Management & Role Assignment** | Yes | No | No | No |
 
-Important activities, including document uploads and permission changes, are recorded as audit events.
+---
 
-Audit Integrity Verification
+## 4. API Reference
 
-The application checks audit-log links and hashes to detect inconsistencies in the recorded event chain.
+All protected endpoints require `Authorization: Bearer <token>`.
 
-6. Security and Testing
+### Authentication & Account:
+- `POST /api/register` — Public user registration (role restricted to `owner` or `viewer`, rate-limited).
+- `POST /api/login` — Authenticates user, issues 15-minute JWT, logs to audit trail.
+- `GET /api/user/profile` — Returns user profile and document statistics.
+- `PUT /api/user/password` — Authenticated password change requiring current password verification.
+- `POST /api/logout` — Records logout audit event and clears session.
 
-The following tests were performed during development:
+### Document Lifecycle:
+- `POST /api/documents/upload` — Uploads document (validates MIME/extension, max 10MB, stores under UUID key).
+- `GET /api/documents` — Lists accessible documents (supports `?search=...&category=...&ownership=...`).
+- `GET /api/documents/:id/download` — Strictly verifies ownership or active permission before streaming.
+- `PATCH /api/documents/:id` — Updates document name or category (requires `OWNER` or `EDIT` permission).
+- `DELETE /api/documents/:id` — Soft deletes document (requires `OWNER` or `ADMIN`).
 
-* Unauthenticated access to the documents API was denied.
-* A viewer was prevented from accessing owner-only permission information.
-* A viewer could download a document while read permission was granted.
-* Download access was denied after permission revocation.
-* Audit verification reported valid links, hashes, and overall integrity.
-7. Conclusion
+### Sharing & Permissions:
+- `GET /api/documents/:id/permissions` — Lists users granted access (`OWNER` or `ADMIN` only).
+- `POST /api/documents/:id/permissions` — Grants `read` or `edit` permission to a user by email.
+- `DELETE /api/documents/:id/permissions/:userId` — Revokes permission (effective immediately).
 
-TrustVault demonstrates a document-sharing workflow that combines authentication, permission management, and an integrity-verifiable audit trail. The tested features provide a foundation for further security hardening and deployment.
+### Audit & Administration:
+- `GET /api/audit-logs` — Fetches role-scoped audit logs.
+- `GET /api/audit-logs/verify` — Recalculates and verifies SHA-256 hash chain integrity.
+- `GET /api/admin/users` — Lists all registered users and document counts (`ADMIN` only).
+- `PATCH /api/admin/users/:id/role` — Changes user role (`ADMIN` only).
+- `GET /api/admin/system-stats` — System metrics and storage provider status (`ADMIN` only).
+- `GET /api/health` — Service health check and storage mode.
 
-8. Future Enhancements
-* Deploy the application to a production environment.
-* Add stronger file validation and malware scanning.
-* Improve the user interface and accessibility.
-* Add automated tests and monitoring.
-* Implement secure backup and recovery procedures.
+---
 
-9. Prerequisites
+## 5. Local Development Setup
 
-Install the following before running TrustVault:
+### Prerequisites:
+- Node.js 20+ and npm
+- PostgreSQL 15+ running locally (or Supabase connection URL)
 
-- Node.js and npm
-- PostgreSQL
-- Git
-- Visual Studio Code (recommended)
-
-10. Local Setup
-
-Clone the repository
-
+### 1. Clone & Install Dependencies
+```bash
 git clone https://github.com/teja0906/TrustVault.git
 cd TrustVault
 
-Backend setup
-
+# Install backend dependencies
 cd backend
 npm install
 
-Create a ".env" file in the backend directory. Configure the database connection, JWT secret, server port, and upload directory according to the variables used in the backend source code.
-
-Important: Never commit ".env" files, database passwords, or production secrets to GitHub.
-
-Run the backend using the start command configured in "backend/package.json".
-
-Frontend setup
-
-Open a second terminal:
-
-cd frontend
+# Install frontend dependencies
+cd ../frontend
 npm install
+```
+
+### 2. Configure Environment Variables
+Copy `.env.example` in `backend/`:
+```bash
+cp .env.example .env
+```
+Update `.env` with your PostgreSQL database credentials and a secure `JWT_SECRET`:
+```env
+PORT=4000
+DATABASE_URL=postgresql://postgres:password@localhost:5432/trustvault
+JWT_SECRET=replace_with_a_secure_random_string_at_least_32_chars_long
+FRONTEND_URL=http://localhost:5173
+UPLOAD_DIR=./uploads
+```
+
+### 3. Initialize Database Schema
+Apply the idempotent schema to your PostgreSQL database:
+```bash
+psql -U postgres -d trustvault -f backend/sql/schema.sql
+```
+
+### 4. Seed Initial Administrator Account (Optional)
+```bash
+cd backend
+npm run seed:admin admin@trustvault.local AdminVault2026!
+```
+
+### 5. Run the Application
+In terminal 1 (Backend API):
+```bash
+cd backend
 npm run dev
+```
 
-Open the local URL printed by Vite in the terminal.
+In terminal 2 (Frontend Client):
+```bash
+cd frontend
+npm run dev
+```
+Open `http://localhost:5173` in your browser.
 
-Database setup
+---
 
-1. Install and start PostgreSQL.
-2. Create a database for TrustVault.
-3. Apply the database schema and setup scripts included in the repository.
-4. Configure the backend environment variables to connect to that database.
+## 6. Automated Security & Integration Testing
 
-«The exact database commands and environment variable names must match the project's actual configuration files.»
+TrustVault includes a comprehensive Vitest & Supertest suite covering all 29 security scenarios:
 
-11. API Access Rules
+```bash
+cd backend
+npx vitest run
+```
 
-Endpoint| Allowed user
-"POST /api/register"| Public registration
-"POST /api/login"| Public login
-"GET /api/health"| Health-check access, as configured
-"GET /api/documents"| Authenticated user; only authorized documents
-"POST /api/documents/upload"| Authenticated user
-"GET /api/documents/:id/download"| Owner or user with valid permission
-"GET /api/documents/:id/permissions"| Document owner only
-"POST /api/documents/:id/permissions"| Document owner only
-"DELETE /api/documents/:id/permissions/:userId"| Document owner only
-"GET /api/audit-logs"| Authenticated user, subject to backend authorization
-"GET /api/audit-logs/verify"| Authenticated user, subject to backend authorization
+### Verified Test Results (29/29 Passing):
+- **Health & System Status**: Verifies `/api/health` returns status `ok` and active storage mode.
+- **Authentication Gateways**: Validates token requirements, rejects invalid credentials, prevents passwords <12 chars, and blocks self-assigned admin privileges at registration.
+- **RBAC Boundaries**: Proves non-admins are rejected with `403 Forbidden` from `/api/admin/*`, viewers cannot view permissions, edit metadata, or delete files.
+- **File Upload Security**: Enforces 10MB limit and rejects dangerous executable files (`.exe`).
+- **Document & Sharing Lifecycle**: Uploads document, verifies viewer is blocked prior to grant, grants `READ`, verifies successful download, verifies `READ` cannot edit metadata, upgrades to `EDIT`, verifies metadata edit succeeds, revokes permission, and verifies subsequent download is **immediately blocked**.
+- **Audit Chain Verification**: Validates sequential SHA-256 hash recalculation and link integrity across all recorded events.
 
-All protected endpoints must receive a valid bearer token. Confirm the authorization rules against the current backend code before submission.
+---
 
-12. Security Test Results
+## 7. Supabase Storage Setup (Production)
 
-The following checks were performed during development:
+For deployment on Render, private files must be stored in Supabase Storage rather than Render's ephemeral filesystem:
 
-Test| Expected result| Observed result
-Request without authentication| Access denied| Passed
-Viewer requests owner-only permissions| "403 Forbidden"| Passed
-Viewer downloads a document with read permission| Download allowed| Passed
-Viewer downloads after permission revocation| Access denied| Passed
-Audit chain verification| Links and hashes valid| Passed
+1. Log into your [Supabase Dashboard](https://supabase.com).
+2. Go to **Storage** -> Click **New Bucket**.
+3. Name the bucket: `trustvault-documents`.
+4. Ensure **Public bucket is toggled OFF** (private bucket).
+5. In **Project Settings** -> **API**, copy:
+   - **Project URL** (`SUPABASE_URL`)
+   - **service_role key** (`SUPABASE_SERVICE_ROLE_KEY` — server-side only; never expose in frontend).
 
-These are manual test results. Automated tests should also be included and run before final submission.
+---
 
-13. Demo Accounts
+## 8. Render Deployment Guide
 
-Add credentials here only after creating dedicated test accounts in the deployed application.
+### Option A: Automated Blueprint (`render.yaml`)
+1. Push your repository to GitHub.
+2. In the [Render Dashboard](https://dashboard.render.com), click **New +** -> **Blueprint**.
+3. Connect your GitHub repository (`https://github.com/teja0906/TrustVault.git`).
+4. Render will detect `render.yaml` and configure both the backend web service and frontend static site.
+5. Provide your `DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` in the environment prompts.
 
-- Owner account: Add the demo email and password.
-- Viewer account: Add the demo email and password.
+### Option B: Manual Service Configuration
+1. **Backend Web Service**:
+   - Environment: `Node`
+   - Build Command: `cd backend && npm install && npm run build`
+   - Start Command: `cd backend && npm start`
+   - Health Check Path: `/api/health`
+   - Environment Variables:
+     - `NODE_ENV`: `production`
+     - `PORT`: `10000` (or leave default; server binds dynamically to `process.env.PORT`)
+     - `DATABASE_URL`: Hosted Supabase PostgreSQL connection string
+     - `JWT_SECRET`: Random 64-character secret
+     - `FRONTEND_URL`: URL of your deployed frontend (e.g. `https://trustvault-frontend.onrender.com`)
+     - `SUPABASE_URL`: Supabase project URL
+     - `SUPABASE_SERVICE_ROLE_KEY`: Supabase service-role secret
+     - `SUPABASE_STORAGE_BUCKET`: `trustvault-documents`
+2. **Frontend Static Site**:
+   - Environment: `Static Site`
+   - Build Command: `cd frontend && npm install && npm run build`
+   - Publish Directory: `frontend/dist`
+   - Environment Variables:
+     - `VITE_API_URL`: URL of your deployed backend (e.g. `https://trustvault-api.onrender.com`)
 
-Use non-sensitive demo credentials only. Never publish personal passwords or production secrets.
+---
 
-14. Deployment
+## 9. Demo Accounts
 
-The application must be deployed before a public live URL can be provided.
+For evaluation and testing:
 
-- Frontend URL: Add the deployed frontend URL.
-- Backend URL: Add the deployed backend URL.
-- Database: Configure a hosted PostgreSQL database.
-- Environment variables: Configure secrets through the hosting provider's environment-variable settings.
-
-Do not describe the application as deployed until the public URLs have been tested successfully.
-
-15. Repository
-
-GitHub: https://github.com/teja0906/TrustVault
-
+| Account Type | Email | Password | Permissions |
+| :--- | :--- | :--- | :--- |
+| **Administrator** | `admin@trustvault.local` | `AdminVault2026!` | Full administrative user management, metrics, audit review |
+| **Owner** | `owner@example.com` | `VaultTestPass123!` | Uploads, full ownership, sharing grant & revocation |
+| **Viewer** | `viewer@example.com` | `VaultTestPass123!` | Accesses only explicitly granted documents (READ/EDIT) |

@@ -60,18 +60,6 @@ CREATE INDEX IF NOT EXISTS idx_audit_occurred
 
 CREATE INDEX IF NOT EXISTS idx_audit_document
     ON audit_events(document_id, occurred_at DESC);
-    CREATE TABLE IF NOT EXISTS audit_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  actor_id UUID REFERENCES app_users(id) ON DELETE SET NULL,
-  action VARCHAR(100) NOT NULL,
-  document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
-  details JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
 
-CREATE INDEX IF NOT EXISTS idx_audit_events_occurred_at
-ON audit_events (occurred_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_audit_events_actor_id
-ON audit_events (actor_id);
-    
+CREATE INDEX IF NOT EXISTS idx_audit_actor
+    ON audit_events(actor_id);

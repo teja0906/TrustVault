@@ -1,0 +1,44 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: trustvault-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: trustvault-documents
+      - key: ADMIN_EMAIL
+        value: admin@trustvault.local
+      - key: ADMIN_INITIAL_PASSWORD
+        sync: false
+
+  # Frontend Static Site
+  - type: web
+    name: trustvault-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: trustvault-api
+          property: host
