@@ -63,23 +63,24 @@ app.use("/api/audit-logs", auditRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Static Frontend SPA Serving (Single Unified URL)
-const candidateDistPaths = [
+const candidateDirs = [
+  path.resolve(__dirname, "../public"),
+  path.resolve(__dirname, "../../public"),
+  path.resolve(process.cwd(), "public"),
+  path.resolve(process.cwd(), "backend/public"),
   path.resolve(__dirname, "../../frontend/dist"),
-  path.resolve(__dirname, "../frontend/dist"),
-  path.resolve(process.cwd(), "frontend/dist"),
-  path.resolve(process.cwd(), "../frontend/dist"),
 ];
 
-const clientDist = candidateDistPaths.find((p) => existsSync(path.join(p, "index.html")));
+const publicDir = candidateDirs.find((p) => existsSync(path.join(p, "index.html")));
 
-if (clientDist) {
-  console.log(`Serving unified frontend from: ${clientDist}`);
-  app.use(express.static(clientDist));
+if (publicDir) {
+  console.log(`Serving unified frontend from: ${publicDir}`);
+  app.use(express.static(publicDir));
 
   // SPA fallback for non-API GET requests
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method === "GET" && !req.path.startsWith("/api")) {
-      return res.sendFile(path.join(clientDist, "index.html"));
+      return res.sendFile(path.join(publicDir, "index.html"));
     }
     return next();
   });
